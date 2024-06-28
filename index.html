@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+            color: #000;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #000;
+            color: #FFD700;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .sidebar h2 {
+            margin: 0;
+            padding: 20px 0;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar ul li {
+            padding: 10px 0;
+            cursor: pointer;
+        }
+
+        .sidebar ul li.active {
+            background-color: #FFD700;
+            color: #000;
+            padding-left: 10px;
+        }
+
+        .sidebar .upgrade {
+            margin-top: 20px;
+        }
+
+        .sidebar .upgrade button {
+            width: 100%;
+            padding: 10px;
+            background-color: #FFD700;
+            border: none;
+            cursor: pointer;
+            color: #000;
+        }
+
+        .sidebar .user {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .sidebar .user img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header .stats {
+            display: flex;
+        }
+
+        .header .stats div {
+            margin-right: 20px;
+            background-color: #000;
+            color: #FFD700;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .header .search input {
+            padding: 10px;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .content {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .overview, .resolution-status {
+            width: 48%;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+
+        .overview .chart,
+        .resolution-status .chart {
+            max-width: 2500px;
+            margin: auto;
+        }
+
+        .class-details {
+            margin-top: 20px;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+
+        .class-details details {
+            margin-bottom: 10px;
+        }
+
+        .class-details details summary {
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .class-details details[open] summary {
+            color: #FFD700;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>UI setup Dashboard</h2>
+        <ul>
+            <li class="active">Dashboard</li>
+            <li>Product</li>
+            <li>Customers</li>
+            <li>Income</li>
+            <li>Promote</li>
+            <li>Help</li>
+        </ul>
+       
+        <div class="user">
+            <p>pixeltests@gmail.com</p>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="header">
+            <div class="stats">
+               
+
+            </div>
+            <div class="search">
+                <input type="text" placeholder="Search">
+            </div>
+        </div>
+        <div class="content">
+            <div class="overview">
+                <h3>Overview</h3>
+                <p>Customer tickets</p>
+                <div class="chart">
+                    <canvas id="ticketsChart"></canvas>
+                </div>
+            </div>
+            <div class="resolution-status">
+                <h3>Resolution status</h3>
+                <p>Customers that buy products</p>
+                <div class="chart">
+                    <canvas id="buyProductsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="class-details" id="class-details">
+            <details>
+                <summary>Class Details</summary>
+                <details id="login-details">
+                    <summary>Login</summary>
+                </details>
+                <details id="password-reset-details">
+                    <summary>Password Reset</summary>
+                </details>
+                <details id="course-extension-request-details">
+                    <summary>Course Extension Request</summary>
+                </details>
+                <details id="course-refund-request-details">
+                    <summary>Course Refund Request</summary>
+                </details>
+                <details id="account-locked-details">
+                    <summary>Account Locked</summary>
+                </details>
+                <details id="others-details">
+                    <summary>Others</summary>
+                </details>
+            </details>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const response = await fetch('/api/tickets');
+            const tickets = await response.json();
+
+            // Display tickets data in the console
+            console.log(tickets);
+
+            // Update stats
+            document.getElementById('stat1').innerText = tickets.length;
+            document.getElementById('stat2').innerText = `${Math.round((tickets.filter(t => t.status === 'Resolved').length / tickets.length) * 100)}%`;
+
+            // Group tickets by issue
+            const issues = {
+                "Login": [],
+                "Password Reset": [],
+                "Course Extension Request": [],
+                "Course Refund Request": [],
+                "Account Locked": [],
+                "Others": []
+            };
+
+            tickets.forEach(ticket => {
+                if (issues[ticket.issue]) {
+                    issues[ticket.issue].push(ticket);
+                } else {
+                    issues["Others"].push(ticket);
+                }
+            });
+
+            // Prepare data for the bar chart
+            const issueLabels = Object.keys(issues);
+            const issueCounts = issueLabels.map(issue => issues[issue].length);
+
+            // Create bar chart
+            const ctx = document.getElementById('ticketsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: issueLabels,
+                    datasets: [{
+                        label: 'Number of Tickets',
+                        data: issueCounts,
+                        backgroundColor: [
+                            '#FFD700', // Login - yellow
+                            '#000000', // Password Reset - black
+                            '#FFD700', // Course Extension Request - yellow
+                            '#000000', // Course Refund Request - black
+                            '#FFD700', // Account Locked - yellow
+                            '#000000'  // Others - black
+                        ],
+                        borderColor: [
+                            '#FFD700', // Login - yellow
+                            '#000000', // Password Reset - black
+                            '#FFD700', // Course Extension Request - yellow
+                            '#000000', // Course Refund Request - black
+                            '#FFD700', // Account Locked - yellow
+                            '#000000'  // Others - black
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Tickets'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Issue Type'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: 'black'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const issueType = context.label;
+                                    const issueCount = context.raw;
+                                    const ticketsForIssue = issues[issueType];
+                                    const names = ticketsForIssue.map(ticket => ticket.name).join(', ');
+                                    return ` ${issueType}: ${issueCount} tickets (${names})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Add details to the class details section
+            const classDetails = document.getElementById('class-details');
+            Object.keys(issues).forEach(issue => {
+                const issueDetails = document.getElementById(`${issue.toLowerCase().replace(/\s+/g, '-')}-details`);
+                issues[issue].forEach(ticket => {
+                    const p = document.createElement('p');
+                    p.innerText = `Ticket #: ${ticket.ticket_number}, Name: ${ticket.name}, Email: ${ticket.email}, Status: ${ticket.status}`;
+                    issueDetails.appendChild(p);
+                });
+            });
+
+            // Create pie chart for buy products
+            const buyProductsCtx = document.getElementById('buyProductsChart').getContext('2d');
+            new Chart(buyProductsCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Issues Resolved', 'Issues Unresolved'],
+                    datasets: [{
+                        data: [
+                            tickets.filter(t => t.status === 'Resolved').length,
+                            tickets.filter(t => t.status !== 'Resolved').length
+                        ],
+                        backgroundColor: [
+                            '#FFD700', // Resolved - yellow
+                            '#000000'  // Unresolved - black
+                        ]
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    },
+                    maintainAspectRatio: false,
+                    responsive: true
+                }
+            });
+        });
+    </script>
+</body>
+</html>
