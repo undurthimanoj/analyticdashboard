@@ -1,0 +1,4 @@
+go to live server on html 
+cd analyticdashboard2 
+cd manoj 
+node server.js
